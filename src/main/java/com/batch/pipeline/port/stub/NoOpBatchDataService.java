@@ -41,7 +41,7 @@ public final class NoOpBatchDataService implements BatchDataService {
     }
 
     @Override
-    public void createOrModifyFlagsChunk(List<FlagsWrite> writes) {
-        // no-op: real path is per-row Flowable DO create-or-modify in a chunk transaction
+    public void updateFlagsChunk(List<FlagsWrite> writes) {
+        // no-op: real path is per-row Flowable DO modification (update-only) in a chunk transaction
     }
 }
