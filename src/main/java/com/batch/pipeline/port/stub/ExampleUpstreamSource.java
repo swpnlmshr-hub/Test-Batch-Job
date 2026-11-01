@@ -8,13 +8,6 @@ import com.batch.pipeline.port.UpstreamSource;
  */
 public final class ExampleUpstreamSource implements UpstreamSource {
 
-    public static final String KEY = "example-upstream";
-
-    @Override
-    public String getKey() {
-        return KEY;
-    }
-
     @Override
     public void prepare() {
         // stub: real impl fetches from upstream open API and writes a local table
