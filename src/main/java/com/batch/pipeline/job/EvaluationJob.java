@@ -13,12 +13,14 @@ import com.batch.pipeline.port.BatchDataService.EvidenceRow;
 import com.batch.pipeline.port.BatchDataService.FlagsWrite;
 import com.batch.pipeline.rule.ChildRule;
 import com.batch.pipeline.rule.ChildRuleRegistry;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Job 2 — Rule evaluation (stub orchestrator skeleton).
@@ -29,27 +31,24 @@ import java.util.Objects;
  * Does not refetch entities from upstream.
  * </p>
  */
+@Slf4j
+@RequiredArgsConstructor
 public final class EvaluationJob {
 
+    @NonNull
     private final BatchDataService dataService;
+    @NonNull
     private final ChildRuleRegistry childRuleRegistry;
     private final int chunkSize;
 
-    public EvaluationJob(
-            BatchDataService dataService,
-            ChildRuleRegistry childRuleRegistry,
-            int chunkSize
-    ) {
-        this.dataService = Objects.requireNonNull(dataService, "dataService");
-        this.childRuleRegistry = Objects.requireNonNull(childRuleRegistry, "childRuleRegistry");
+    public void run() {
         if (chunkSize < 1) {
             throw new IllegalArgumentException("chunkSize must be >= 1");
         }
-        this.chunkSize = chunkSize;
-    }
 
-    public void run() {
+        log.info("Evaluation starting (chunkSize={})", chunkSize);
         List<EvidenceRow> rows = dataService.loadAllEvidence();
+        log.debug("Loaded {} evidence rows", rows.size());
 
         // Group parent outcomes by entity for flagsDO create-or-modify shape.
         Map<String, List<ParentEvaluationOutcome>> byEntity = new LinkedHashMap<>();
@@ -68,6 +67,8 @@ public final class EvaluationJob {
         if (!buffer.isEmpty()) {
             flush(buffer);
         }
+
+        log.info("Evaluation finished for {} entities", byEntity.size());
     }
 
     private ParentEvaluationOutcome evaluateParent(String parentRuleId, Evidence evidence) {
@@ -137,6 +138,7 @@ public final class EvaluationJob {
 
     private void flush(List<FlagsWrite> buffer) {
         // Chunk = one transaction; each write is an individual Flowable DO create-or-modify.
+        log.debug("Flushing {} flags writes", buffer.size());
         dataService.createOrModifyFlagsChunk(List.copyOf(buffer));
         buffer.clear();
     }
