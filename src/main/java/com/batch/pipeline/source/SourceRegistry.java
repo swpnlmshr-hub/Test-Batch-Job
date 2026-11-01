@@ -32,12 +32,8 @@ public final class SourceRegistry {
         return Optional.ofNullable(sourcesByKey.get(parentRuleKey));
     }
 
-    public Source require(String parentRuleKey) {
-        return find(parentRuleKey)
-                .orElseThrow(() -> new IllegalArgumentException("No Source registered for key: " + parentRuleKey));
-    }
-
     public Map<String, Source> asMap() {
         return sourcesByKey;
     }
 }
+
