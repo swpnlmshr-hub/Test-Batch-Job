@@ -18,7 +18,8 @@ import java.util.Objects;
  * Job 1 — Source / evidence gathering (stub orchestrator skeleton).
  * <p>
  * Order: upstream prep → load entities → per entity/parent: stage gate →
- * fetch evidence (or stage-fail shell) → chunked upsert. Does not run rules.
+ * fetch evidence (or stage-fail shell) → chunked transactional Flowable DO
+ * create-or-modify. Does not run rules.
  * </p>
  */
 public final class EvidenceGatheringJob {
@@ -86,7 +87,8 @@ public final class EvidenceGatheringJob {
     }
 
     private void flush(List<EvidenceWrite> buffer) {
-        dataService.upsertEvidenceChunk(List.copyOf(buffer));
+        // Chunk = one transaction; each write is an individual Flowable DO create-or-modify.
+        dataService.createOrModifyEvidenceChunk(List.copyOf(buffer));
         buffer.clear();
     }
 
