@@ -6,7 +6,8 @@ import com.batch.pipeline.model.Rule;
 import com.batch.pipeline.port.BatchDataService;
 import com.batch.pipeline.port.BatchDataService.EvidenceWrite;
 import com.batch.pipeline.port.BatchDataService.ParentRuleCandidate;
-import com.batch.pipeline.port.UpstreamDataService;
+import com.batch.pipeline.port.UpstreamSource;
+import com.batch.pipeline.port.UpstreamSourceRegistry;
 import com.batch.pipeline.source.Source;
 import com.batch.pipeline.source.SourceRegistry;
 
@@ -18,7 +19,7 @@ import java.util.Objects;
 /**
  * Job 1 — Source / evidence gathering (stub orchestrator skeleton).
  * <p>
- * Order: upstream prep ({@link UpstreamDataService}) → load entities
+ * Order: prepare every registered {@link UpstreamSource} → load entities
  * ({@link BatchDataService}) → per entity/parent: stage gate → fetch evidence
  * (or stage-fail shell) → chunked transactional Flowable DO create-or-modify.
  * Does not run rules.
@@ -26,18 +27,19 @@ import java.util.Objects;
  */
 public final class EvidenceGatheringJob {
 
-    private final UpstreamDataService upstreamDataService;
+    private final UpstreamSourceRegistry upstreamSourceRegistry;
     private final BatchDataService dataService;
     private final SourceRegistry sourceRegistry;
     private final int chunkSize;
 
     public EvidenceGatheringJob(
-            UpstreamDataService upstreamDataService,
+            UpstreamSourceRegistry upstreamSourceRegistry,
             BatchDataService dataService,
             SourceRegistry sourceRegistry,
             int chunkSize
     ) {
-        this.upstreamDataService = Objects.requireNonNull(upstreamDataService, "upstreamDataService");
+        this.upstreamSourceRegistry = Objects.requireNonNull(
+                upstreamSourceRegistry, "upstreamSourceRegistry");
         this.dataService = Objects.requireNonNull(dataService, "dataService");
         this.sourceRegistry = Objects.requireNonNull(sourceRegistry, "sourceRegistry");
         if (chunkSize < 1) {
@@ -48,12 +50,14 @@ public final class EvidenceGatheringJob {
 
     /**
      * Run the nightly evidence-gathering pipeline.
-     * Upstream open API stays behind {@link UpstreamDataService};
+     * Upstream open API stays behind pluggable {@link UpstreamSource}s;
      * Flowable DO persistence stays behind {@link BatchDataService}.
      */
     public void run() {
-        // 1. Upstream data prep — fetch & store locally before the entity loop.
-        upstreamDataService.prepareUpstream();
+        // 1. Upstream data prep — each registered source fetches & stores locally.
+        for (UpstreamSource upstream : upstreamSourceRegistry.all()) {
+            upstream.prepare();
+        }
 
         // 2. Fetch entities to evaluate (~3–4k expected) from local / Flowable store.
         List<Entity> entities = dataService.loadEntitiesToEvaluate();

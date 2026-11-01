@@ -5,7 +5,8 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 ## Jobs (sequential)
 
 1. **Evidence gathering** (`com.batch.pipeline.job.EvidenceGatheringJob`)
-   - Upstream prep via `UpstreamDataService` (open API fetch & store locally)
+   - Upstream prep: Job 1 iterates every `UpstreamSource` in `UpstreamSourceRegistry` (each may write different local tables); add another source by implementing + registering
+   - Optional facade: `RegistryUpstreamDataService` implements `UpstreamDataService` by calling `prepareAll()`
    - Load entities / rules via `BatchDataService` (local Flowable DO store)
    - Per entity / parent rule: **stage gate** → gather evidence via `Source` (or write `isApplicable=false` shell with `evidenceRules`)
    - Chunked transactional Flowable DO create-or-modify via `BatchDataService` / `FlowableBatchDataService`
@@ -23,7 +24,7 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 | `com.batch.pipeline.model` | Enums + records (`Entity`, `Evidence`, outcomes, …) |
 | `com.batch.pipeline.source` | `Source` interface + `SourceRegistry` |
 | `com.batch.pipeline.rule` | `ChildRule` interface + `ChildRuleRegistry` |
-| `com.batch.pipeline.port` | `UpstreamDataService` (upstream open API) + `BatchDataService` (Flowable DO) |
+| `com.batch.pipeline.port` | `UpstreamSource` + registry (multi-upstream prep) + `BatchDataService` (Flowable DO) |
 | `com.batch.pipeline.port.flowable` | DO keys, `DataObjectRuntimeService` mirror, `FlowableBatchDataService` |
 | `com.batch.pipeline.job` | Job orchestrator skeletons |
 | `*.stub` | Example Source / rule and no-op upstream + batch services |
@@ -38,7 +39,7 @@ mvn -q clean compile
 
 ## Flowable persistence
 
-**Upstream** prep/fetch is a separate contract: `UpstreamDataService` (not Flowable DO).
+**Upstream** prep/fetch is separate from Flowable DO: pluggable `UpstreamSource` (`getKey()`, `prepare()`), collected in `UpstreamSourceRegistry`. Job 1 loops `registry.all()` and calls `prepare()` on each. Stub: `ExampleUpstreamSource`.
 
 **In-app DB** is strictly **Flowable Data Objects** on `BatchDataService` — no JDBC bulk upsert / multi-row SQL batch insert.
 
