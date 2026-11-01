@@ -17,28 +17,23 @@
         <maven.compiler.release>21</maven.compiler.release>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <!-- Placeholder: pin when Flowable adapters are wired (not required to compile). -->
-        <!-- <flowable.version>7.1.0</flowable.version> -->
+        <!--
+          Flowable Data Objects (DataObjectRuntimeService) are platform/Work APIs,
+          not published on Maven Central. This project compiles against the local
+          mirror in com.batch.pipeline.port.flowable.DataObjectRuntimeService.
+          Pin a provided Flowable Work / platform BOM here when available.
+        -->
+        <!-- <flowable.version>...</flowable.version> -->
     </properties>
 
-    <!--
-      Flowable (optional / not wired yet).
-      Production persistence will use Flowable Data Objects behind a single
-      BatchDataService implementation. Keep Flowable off the compile classpath
-      until that adapter lands so mvn compile stays green without Flowable
-      credentials or engine config.
-
-      When ready, uncomment something like:
-
-      <dependencies>
+    <dependencies>
         <dependency>
-          <groupId>org.flowable</groupId>
-          <artifactId>flowable-engine</artifactId>
-          <version>${flowable.version}</version>
-          <scope>provided</scope>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
         </dependency>
-      </dependencies>
-    -->
+    </dependencies>
 
     <build>
         <plugins>

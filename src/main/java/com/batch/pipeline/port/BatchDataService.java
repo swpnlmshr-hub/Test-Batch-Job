@@ -9,60 +9,63 @@ import com.batch.pipeline.model.Rule;
 import java.util.List;
 
 /**
- * Single persistence / data-access boundary for both batch jobs.
+ * In-app Flowable Data Object persistence / load boundary for both batch jobs.
  * <p>
- * Implement this once (e.g. Flowable Data Object adapters) so evidence gathering
- * and evaluation share one service. Hides Flowable / JDBC details; prefer chunked
- * transactional upserts on unique keys. No assumed bulk Data Object API.
+ * All Flowable DO operations live here in this single file (entity/rule loads from
+ * local DO store, evidence/flags create-or-modify, etc.). Upstream open-API prep
+ * belongs on {@link UpstreamDataService}, not here.
+ * </p>
+ * <p>
+ * Implement against Flowable {@code DataObjectRuntimeService} create / modification
+ * builders. Chunking means: process N rows, then commit one transaction — each row
+ * is still an individual Flowable DO create or modify (lookup → create if missing,
+ * modify if present). Flowable has no batch insert; do not use JDBC multi-row SQL
+ * batch writes.
  * </p>
  */
 public interface BatchDataService {
 
-    // --- upstream prep (job 1) ---
+    // --- entity + parent-rule load (local / Flowable DO) ---
 
     /**
-     * Prefetch and store upstream data needed for this nightly run.
-     * Gatherers then read local copies, not live upstream, during the entity loop.
-     */
-    void prepareUpstream();
-
-    // --- entity + parent-rule load (job 1) ---
-
-    /**
-     * Entities to evaluate (~3–4k expected).
+     * Entities to evaluate (~3–4k expected), from local store after upstream prep.
      */
     List<Entity> loadEntitiesToEvaluate();
 
     /**
-     * Parent rule candidates for an entity (not child rules).
+     * Parent rule candidates for an entity (not child rules), from {@code ruleListDO}.
      * Applicable-stage is used by the orchestrator stage gate.
      */
     List<ParentRuleCandidate> loadParentRules(Entity entity);
 
     /**
-     * Mapped child rules under a parent (always written into {@code evidenceRules}).
+     * Mapped child rules under a parent (always written into {@code evidenceRules}),
+     * from {@code ruleMappingDO} / {@code rulesDO}.
      */
     List<Rule> loadMappedChildRules(String parentRuleId, EntityType entityType);
 
     // --- evidence persistence (job 1 write / job 2 read) ---
 
     /**
-     * Upsert a batch of evidence payloads in one chunk/transaction
-     * on unique {@code (entityId, parentRuleId)}.
+     * Chunked transactional Flowable DO create-or-modify for evidence rows
+     * keyed by {@code (entityId, parentRuleId)}. One create or modify builder
+     * call per write; no JDBC bulk upsert.
      */
-    void upsertEvidenceChunk(List<EvidenceWrite> writes);
+    void createOrModifyEvidenceChunk(List<EvidenceWrite> writes);
 
     /**
-     * Load stored evidence rows for the evaluation job (no upstream refetch).
+     * Load stored evidence Data Objects for the evaluation job (no upstream refetch).
      */
     List<EvidenceRow> loadAllEvidence();
 
     // --- flags persistence (job 2) ---
 
     /**
-     * Upsert flags for a chunk of entities.
+     * Chunked transactional Flowable DO create-or-modify for flags rows
+     * keyed by entity id. One create or modify builder call per write;
+     * no JDBC bulk upsert.
      */
-    void upsertFlagsChunk(List<FlagsWrite> writes);
+    void createOrModifyFlagsChunk(List<FlagsWrite> writes);
 
     // --- DTOs ---
 
@@ -77,7 +80,7 @@ public interface BatchDataService {
     }
 
     /**
-     * One evidence row to create-or-modify.
+     * One evidence Data Object to create-or-modify.
      *
      * @param entityId     entity primary key
      * @param entityType   system or case
@@ -93,7 +96,7 @@ public interface BatchDataService {
     }
 
     /**
-     * Stored evidence row for evaluation.
+     * Stored evidence Data Object for evaluation.
      *
      * @param entityId     entity primary key
      * @param entityType   system or case
@@ -109,7 +112,7 @@ public interface BatchDataService {
     }
 
     /**
-     * Flags payload for one entity (all parent outcomes for that entity).
+     * Flags Data Object payload for one entity (all parent outcomes for that entity).
      *
      * @param entityId entity primary key
      * @param parents  parent-level rollups that form the flags value JSON

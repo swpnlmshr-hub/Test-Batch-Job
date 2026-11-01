@@ -51,7 +51,7 @@ public final class EvaluationJob {
     public void run() {
         List<EvidenceRow> rows = dataService.loadAllEvidence();
 
-        // Group parent outcomes by entity for flags upsert shape.
+        // Group parent outcomes by entity for flagsDO create-or-modify shape.
         Map<String, List<ParentEvaluationOutcome>> byEntity = new LinkedHashMap<>();
         for (EvidenceRow row : rows) {
             ParentEvaluationOutcome parentOutcome = evaluateParent(row.parentRuleId(), row.evidence());
@@ -136,7 +136,8 @@ public final class EvaluationJob {
     }
 
     private void flush(List<FlagsWrite> buffer) {
-        dataService.upsertFlagsChunk(List.copyOf(buffer));
+        // Chunk = one transaction; each write is an individual Flowable DO create-or-modify.
+        dataService.createOrModifyFlagsChunk(List.copyOf(buffer));
         buffer.clear();
     }
 }
