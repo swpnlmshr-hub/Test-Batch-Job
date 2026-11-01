@@ -14,7 +14,7 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 2. **Evaluation** (`com.batch.pipeline.job.EvaluationJob`)
    - Reads stored evidence (no upstream refetch)
    - Per parent: run **applicability** child rules, then **evaluation** rules only if aggregate is `APPLICABLE` (short-circuit otherwise)
-   - Chunked transactional Flowable DO create-or-modify for flags via `BatchDataService`
+   - Chunked transactional Flowable DO <strong>update-only</strong> for flags via `BatchDataService` (flags rows always exist)
 
 ## Layout
 
@@ -42,12 +42,11 @@ mvn -q clean test
 
 **In-app DB** is strictly **Flowable Data Objects** on `BatchDataService` — no JDBC bulk upsert / multi-row SQL batch insert.
 
-- Contract: `BatchDataService` (local entity/rule loads + `createOrModifyEvidenceChunk` / `createOrModifyFlagsChunk`)
+- Contract: `BatchDataService` (local entity/rule loads + `createOrModifyEvidenceChunk` / `updateFlagsChunk`)
 - Implementation: `FlowableBatchDataService` using `DataObjectRuntimeService`
-  - `findDataObjectInstanceId` → lookup
-  - `createDataObjectBuilder().definitionKey(...).values(...).create()` if missing
-  - `createDataObjectModificationBuilder().id(...).values(...).modify()` if present
-- Chunking = process N rows then **one transaction**; each row is still one create or one modify (Flowable has no batch insert)
+  - Evidence: `findDataObjectInstanceId` → create builder if missing, modification builder if present
+  - Flags: lookup → **modification builder only** (no create; rows always exist)
+- Chunking = process N rows then **one transaction**; each row is still one DO create or modify (Flowable has no batch insert)
 - `DataObjectRuntimeService` is a compile-safe mirror of Flowable’s API (Data Objects are not on public Maven Central). Wire the real platform service behind it in production. `RecordingDataObjectRuntimeService` exercises the same builder calls in-memory.
 
 ### Data Object definition keys

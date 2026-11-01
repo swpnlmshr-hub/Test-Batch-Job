@@ -12,8 +12,9 @@ import java.util.List;
  * In-app Flowable Data Object persistence / load boundary for both batch jobs.
  * <p>
  * All Flowable DO operations live here in this single file (entity/rule loads from
- * local DO store, evidence/flags create-or-modify, etc.). Upstream open-API prep
- * belongs on {@link UpstreamSource} / {@link UpstreamSourceRegistry}, not here.
+ * local DO store, evidence create-or-modify, flags update-only, etc.). Upstream
+ * open-API prep belongs on {@link UpstreamSource} / {@link UpstreamSourceRegistry},
+ * not here.
  * </p>
  * <p>
  * Implement against Flowable {@code DataObjectRuntimeService} create / modification
@@ -61,11 +62,11 @@ public interface BatchDataService {
     // --- flags persistence (job 2) ---
 
     /**
-     * Chunked transactional Flowable DO create-or-modify for flags rows
-     * keyed by entity id. One create or modify builder call per write;
-     * no JDBC bulk upsert.
+     * Chunked transactional Flowable DO <strong>update-only</strong> for flags rows
+     * keyed by entity id. Flags records always exist — use modification builder only
+     * (no create). One modify call per write; no JDBC bulk upsert.
      */
-    void createOrModifyFlagsChunk(List<FlagsWrite> writes);
+    void updateFlagsChunk(List<FlagsWrite> writes);
 
     // --- DTOs ---
 

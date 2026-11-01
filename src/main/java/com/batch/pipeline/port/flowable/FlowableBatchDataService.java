@@ -17,18 +17,15 @@ import java.util.Optional;
 /**
  * Flowable Data Object–backed {@link BatchDataService} implementation.
  * <p>
- * Evidence and flags persistence use <strong>per-row</strong> Flowable DO
- * create-or-modify via {@link DataObjectRuntimeService}:
+ * Evidence persistence uses <strong>per-row</strong> Flowable DO create-or-modify
+ * via {@link DataObjectRuntimeService}. Flags persistence is <strong>update-only</strong>
+ * (records always exist) — modification builder only, no create branch.
  * </p>
  * <pre>{@code
- * Optional<String> id = dataObjectRuntimeService.findDataObjectInstanceId(key, identity);
- * if (id.isEmpty()) {
- *   dataObjectRuntimeService.createDataObjectBuilder()
- *       .definitionKey(key).values(values).create();
- * } else {
- *   dataObjectRuntimeService.createDataObjectModificationBuilder()
- *       .id(id.get()).values(values).modify();
- * }
+ * // evidence: lookup → create or modify
+ * // flags: lookup → modify (required); never create
+ * dataObjectRuntimeService.createDataObjectModificationBuilder()
+ *     .id(existingId).values(values).modify();
  * }</pre>
  * <p>
  * A chunk is only a transactional boundary around N individual DO operations.
@@ -84,12 +81,12 @@ public final class FlowableBatchDataService implements BatchDataService {
     }
 
     @Override
-    public void createOrModifyFlagsChunk(List<FlagsWrite> writes) {
+    public void updateFlagsChunk(List<FlagsWrite> writes) {
         Objects.requireNonNull(writes, "writes");
-        log.debug("createOrModifyFlagsChunk size={}", writes.size());
+        log.debug("updateFlagsChunk size={}", writes.size());
         dataObjectRuntimeService.inTransaction(() -> {
             for (FlagsWrite write : writes) {
-                createOrModifyFlags(write);
+                updateFlags(write);
             }
             return null;
         });
@@ -125,28 +122,24 @@ public final class FlowableBatchDataService implements BatchDataService {
     }
 
     /**
-     * One flagsDO row: lookup by entityId → create or modify.
+     * One flagsDO row: lookup by entityId → modification builder only.
+     * Flags records always exist; missing instance is an error (no create).
      */
-    private void createOrModifyFlags(FlagsWrite write) {
+    private void updateFlags(FlagsWrite write) {
         Map<String, Object> identity = Map.of("entityId", write.entityId());
         Map<String, Object> values = flagsValues(write);
 
-        Optional<String> existingId = dataObjectRuntimeService.findDataObjectInstanceId(
-                FlowableDataObjectKeys.FLAGS_DO, identity);
+        String existingId = dataObjectRuntimeService.findDataObjectInstanceId(
+                        FlowableDataObjectKeys.FLAGS_DO, identity)
+                .orElseThrow(() -> new IllegalStateException(
+                        "flagsDO missing for entityId=" + write.entityId()
+                                + "; flags rows must already exist (update-only)"));
 
-        if (existingId.isEmpty()) {
-            log.trace("Creating flagsDO for entityId={}", write.entityId());
-            dataObjectRuntimeService.createDataObjectBuilder()
-                    .definitionKey(FlowableDataObjectKeys.FLAGS_DO)
-                    .values(values)
-                    .create();
-        } else {
-            log.trace("Modifying flagsDO id={}", existingId.get());
-            dataObjectRuntimeService.createDataObjectModificationBuilder()
-                    .id(existingId.get())
-                    .values(values)
-                    .modify();
-        }
+        log.trace("Modifying flagsDO id={}", existingId);
+        dataObjectRuntimeService.createDataObjectModificationBuilder()
+                .id(existingId)
+                .values(values)
+                .modify();
     }
 
     private static Map<String, Object> evidenceValues(EvidenceWrite write) {
