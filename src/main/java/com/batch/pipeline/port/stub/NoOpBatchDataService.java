@@ -1,0 +1,50 @@
+package com.batch.pipeline.port.stub;
+
+import com.batch.pipeline.model.Entity;
+import com.batch.pipeline.model.EntityType;
+import com.batch.pipeline.model.Rule;
+import com.batch.pipeline.port.BatchDataService;
+
+import java.util.List;
+
+/**
+ * No-op {@link BatchDataService} so jobs can be wired in smoke tests without Flowable.
+ * Replace with a real Flowable DO / JDBC implementation of the same interface.
+ */
+public final class NoOpBatchDataService implements BatchDataService {
+
+    @Override
+    public void prepareUpstream() {
+        // no-op: real impl fetches upstream and stores locally
+    }
+
+    @Override
+    public List<Entity> loadEntitiesToEvaluate() {
+        return List.of();
+    }
+
+    @Override
+    public List<ParentRuleCandidate> loadParentRules(Entity entity) {
+        return List.of();
+    }
+
+    @Override
+    public List<Rule> loadMappedChildRules(String parentRuleId, EntityType entityType) {
+        return List.of();
+    }
+
+    @Override
+    public void upsertEvidenceChunk(List<EvidenceWrite> writes) {
+        // no-op chunk upsert
+    }
+
+    @Override
+    public List<EvidenceRow> loadAllEvidence() {
+        return List.of();
+    }
+
+    @Override
+    public void upsertFlagsChunk(List<FlagsWrite> writes) {
+        // no-op chunk upsert
+    }
+}

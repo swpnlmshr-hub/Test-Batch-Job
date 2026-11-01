@@ -23,10 +23,10 @@
 
     <!--
       Flowable (optional / not wired yet).
-      Production persistence will use Flowable Data Objects behind the
-      EvidenceUpsertPort / FlagsUpsertPort adapters. Keep Flowable off the
-      compile classpath until those adapters land so mvn compile stays
-      green without Flowable credentials or engine config.
+      Production persistence will use Flowable Data Objects behind a single
+      BatchDataService implementation. Keep Flowable off the compile classpath
+      until that adapter lands so mvn compile stays green without Flowable
+      credentials or engine config.
 
       When ready, uncomment something like:
 
