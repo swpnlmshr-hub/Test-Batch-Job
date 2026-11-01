@@ -13,7 +13,7 @@ import java.util.List;
  * <p>
  * All Flowable DO operations live here in this single file (entity/rule loads from
  * local DO store, evidence/flags create-or-modify, etc.). Upstream open-API prep
- * belongs on {@link UpstreamDataService}, not here.
+ * belongs on {@link UpstreamSource} / {@link UpstreamSourceRegistry}, not here.
  * </p>
  * <p>
  * Implement against Flowable {@code DataObjectRuntimeService} create / modification

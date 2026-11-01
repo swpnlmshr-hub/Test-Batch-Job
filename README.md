@@ -5,8 +5,7 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 ## Jobs (sequential)
 
 1. **Evidence gathering** (`com.batch.pipeline.job.EvidenceGatheringJob`)
-   - Upstream prep: Job 1 iterates every `UpstreamSource` in `UpstreamSourceRegistry` (each may write different local tables); add another source by implementing + registering
-   - Optional facade: `RegistryUpstreamDataService` implements `UpstreamDataService` by calling `prepareAll()`
+   - Upstream prep: Job 1 iterates every `UpstreamSource` in `UpstreamSourceRegistry` (each may write different local tables); add another source by implementing + registering — no per-source key
    - Load entities / rules via `BatchDataService` (local Flowable DO store)
    - Per entity / parent rule: **stage gate** → gather evidence via `Source` (or write `isApplicable=false` shell with `evidenceRules`)
    - Chunked transactional Flowable DO create-or-modify via `BatchDataService` / `FlowableBatchDataService`
@@ -39,7 +38,7 @@ mvn -q clean compile
 
 ## Flowable persistence
 
-**Upstream** prep/fetch is separate from Flowable DO: pluggable `UpstreamSource` (`getKey()`, `prepare()`), collected in `UpstreamSourceRegistry`. Job 1 loops `registry.all()` and calls `prepare()` on each. Stub: `ExampleUpstreamSource`.
+**Upstream** prep/fetch is separate from Flowable DO: pluggable `UpstreamSource` (`prepare()` only), held as an ordered list in `UpstreamSourceRegistry`. Job 1 always runs every registered source. Stub: `ExampleUpstreamSource`.
 
 **In-app DB** is strictly **Flowable Data Objects** on `BatchDataService` — no JDBC bulk upsert / multi-row SQL batch insert.
 
