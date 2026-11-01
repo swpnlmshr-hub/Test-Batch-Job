@@ -1,6 +1,6 @@
 # Test Batch Job
 
-Java 17+ Maven scaffold for a two-step nightly batch pipeline.
+Java 21 Maven scaffold for a two-step nightly batch pipeline.
 
 ## Jobs (sequential)
 
@@ -29,8 +29,14 @@ Java 17+ Maven scaffold for a two-step nightly batch pipeline.
 
 ## Build
 
+Requires **JDK 21**.
+
 ```bash
 mvn -q compile
 ```
 
-Flowable is intentionally **not** a hard dependency; wire adapters that implement the ports when integrating.
+## Flowable
+
+Flowable is intentionally **not** a hard compile dependency. Persistence stays behind `EvidenceUpsertPort` / `FlagsUpsertPort` (and related load ports) so the scaffold builds without Flowable credentials or engine config.
+
+In production, those adapters will use **Flowable Data Objects** — per-instance create/modification builders and **chunked transactional upserts**. There is no assumed bulk Data Object API; multi-instance DO updates are still N updates, so prefer chunked create-or-modify (or custom JDBC batch upsert later if needed). A commented `provided`-scope placeholder lives in `pom.xml` for when adapters are wired.
