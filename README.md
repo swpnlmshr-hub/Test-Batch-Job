@@ -30,10 +30,10 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 
 ## Build
 
-Requires **JDK 21**.
+Requires **JDK 21**. Uses **Lombok** (`provided`) for constructors/logging on jobs and services; model types stay as Java records.
 
 ```bash
-mvn -q clean compile
+mvn -q clean test
 ```
 
 ## Flowable persistence

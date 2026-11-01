@@ -4,6 +4,9 @@ import com.batch.pipeline.model.Entity;
 import com.batch.pipeline.model.EntityType;
 import com.batch.pipeline.model.Rule;
 import com.batch.pipeline.port.BatchDataService;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.List;
@@ -33,18 +36,16 @@ import java.util.Optional;
  * Definition keys: {@link FlowableDataObjectKeys}.
  * </p>
  */
+@Slf4j
+@RequiredArgsConstructor
 public final class FlowableBatchDataService implements BatchDataService {
 
+    @NonNull
     private final DataObjectRuntimeService dataObjectRuntimeService;
-
-    public FlowableBatchDataService(DataObjectRuntimeService dataObjectRuntimeService) {
-        this.dataObjectRuntimeService = Objects.requireNonNull(
-                dataObjectRuntimeService, "dataObjectRuntimeService");
-    }
 
     @Override
     public List<Entity> loadEntitiesToEvaluate() {
-        // TODO: load entities from local / Flowable store after UpstreamDataService prep
+        // TODO: load entities from local / Flowable store after upstream prep
         throw new UnsupportedOperationException("loadEntitiesToEvaluate: wire local entity load");
     }
 
@@ -66,6 +67,7 @@ public final class FlowableBatchDataService implements BatchDataService {
     @Override
     public void createOrModifyEvidenceChunk(List<EvidenceWrite> writes) {
         Objects.requireNonNull(writes, "writes");
+        log.debug("createOrModifyEvidenceChunk size={}", writes.size());
         dataObjectRuntimeService.inTransaction(() -> {
             for (EvidenceWrite write : writes) {
                 createOrModifyEvidence(write);
@@ -84,6 +86,7 @@ public final class FlowableBatchDataService implements BatchDataService {
     @Override
     public void createOrModifyFlagsChunk(List<FlagsWrite> writes) {
         Objects.requireNonNull(writes, "writes");
+        log.debug("createOrModifyFlagsChunk size={}", writes.size());
         dataObjectRuntimeService.inTransaction(() -> {
             for (FlagsWrite write : writes) {
                 createOrModifyFlags(write);
@@ -106,11 +109,14 @@ public final class FlowableBatchDataService implements BatchDataService {
                 FlowableDataObjectKeys.EVIDENCE_DO, identity);
 
         if (existingId.isEmpty()) {
+            log.trace("Creating evidenceDO for entityId={} parentRuleId={}",
+                    write.entityId(), write.parentRuleId());
             dataObjectRuntimeService.createDataObjectBuilder()
                     .definitionKey(FlowableDataObjectKeys.EVIDENCE_DO)
                     .values(values)
                     .create();
         } else {
+            log.trace("Modifying evidenceDO id={}", existingId.get());
             dataObjectRuntimeService.createDataObjectModificationBuilder()
                     .id(existingId.get())
                     .values(values)
@@ -129,11 +135,13 @@ public final class FlowableBatchDataService implements BatchDataService {
                 FlowableDataObjectKeys.FLAGS_DO, identity);
 
         if (existingId.isEmpty()) {
+            log.trace("Creating flagsDO for entityId={}", write.entityId());
             dataObjectRuntimeService.createDataObjectBuilder()
                     .definitionKey(FlowableDataObjectKeys.FLAGS_DO)
                     .values(values)
                     .create();
         } else {
+            log.trace("Modifying flagsDO id={}", existingId.get());
             dataObjectRuntimeService.createDataObjectModificationBuilder()
                     .id(existingId.get())
                     .values(values)
