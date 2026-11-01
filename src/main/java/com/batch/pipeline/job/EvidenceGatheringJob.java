@@ -8,7 +8,6 @@ import com.batch.pipeline.port.BatchDataService.EvidenceWrite;
 import com.batch.pipeline.port.BatchDataService.ParentRuleCandidate;
 import com.batch.pipeline.port.UpstreamSource;
 import com.batch.pipeline.port.UpstreamSourceRegistry;
-import com.batch.pipeline.source.Source;
 import com.batch.pipeline.source.SourceRegistry;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -73,8 +72,13 @@ public final class EvidenceGatheringJob {
                     // Stage gate fail: isApplicable=false, empty items, evidenceRules still populated.
                     evidence = new Evidence(false, Instant.now(), mappedChildren, List.of());
                 } else {
-                    Source source = sourceRegistry.require(parent.parentRuleId());
-                    evidence = source.fetchEvidence(entity.id());
+                    var source = sourceRegistry.find(parent.parentRuleId());
+                    if (source.isEmpty()) {
+                        log.warn("No Source registered for parentRuleId={}; skipping entityId={}",
+                                parent.parentRuleId(), entity.id());
+                        continue;
+                    }
+                    evidence = source.get().fetchEvidence(entity.id());
                 }
 
                 buffer.add(new EvidenceWrite(
