@@ -6,6 +6,7 @@ import com.batch.pipeline.model.Rule;
 import com.batch.pipeline.port.BatchDataService;
 import com.batch.pipeline.port.BatchDataService.EvidenceWrite;
 import com.batch.pipeline.port.BatchDataService.ParentRuleCandidate;
+import com.batch.pipeline.port.UpstreamDataService;
 import com.batch.pipeline.source.Source;
 import com.batch.pipeline.source.SourceRegistry;
 
@@ -17,22 +18,26 @@ import java.util.Objects;
 /**
  * Job 1 — Source / evidence gathering (stub orchestrator skeleton).
  * <p>
- * Order: upstream prep → load entities → per entity/parent: stage gate →
- * fetch evidence (or stage-fail shell) → chunked transactional Flowable DO
- * create-or-modify. Does not run rules.
+ * Order: upstream prep ({@link UpstreamDataService}) → load entities
+ * ({@link BatchDataService}) → per entity/parent: stage gate → fetch evidence
+ * (or stage-fail shell) → chunked transactional Flowable DO create-or-modify.
+ * Does not run rules.
  * </p>
  */
 public final class EvidenceGatheringJob {
 
+    private final UpstreamDataService upstreamDataService;
     private final BatchDataService dataService;
     private final SourceRegistry sourceRegistry;
     private final int chunkSize;
 
     public EvidenceGatheringJob(
+            UpstreamDataService upstreamDataService,
             BatchDataService dataService,
             SourceRegistry sourceRegistry,
             int chunkSize
     ) {
+        this.upstreamDataService = Objects.requireNonNull(upstreamDataService, "upstreamDataService");
         this.dataService = Objects.requireNonNull(dataService, "dataService");
         this.sourceRegistry = Objects.requireNonNull(sourceRegistry, "sourceRegistry");
         if (chunkSize < 1) {
@@ -43,13 +48,14 @@ public final class EvidenceGatheringJob {
 
     /**
      * Run the nightly evidence-gathering pipeline.
-     * Persistence/Flowable details stay behind {@link BatchDataService}.
+     * Upstream open API stays behind {@link UpstreamDataService};
+     * Flowable DO persistence stays behind {@link BatchDataService}.
      */
     public void run() {
         // 1. Upstream data prep — fetch & store locally before the entity loop.
-        dataService.prepareUpstream();
+        upstreamDataService.prepareUpstream();
 
-        // 2. Fetch entities to evaluate (~3–4k expected).
+        // 2. Fetch entities to evaluate (~3–4k expected) from local / Flowable store.
         List<Entity> entities = dataService.loadEntitiesToEvaluate();
 
         List<EvidenceWrite> buffer = new ArrayList<>();

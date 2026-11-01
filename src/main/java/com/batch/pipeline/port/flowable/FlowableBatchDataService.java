@@ -43,15 +43,9 @@ public final class FlowableBatchDataService implements BatchDataService {
     }
 
     @Override
-    public void prepareUpstream() {
-        // TODO: upstream prep (not a DO upsert); keep outside evidence/flags create-or-modify
-        throw new UnsupportedOperationException("prepareUpstream: wire upstream prefetch");
-    }
-
-    @Override
     public List<Entity> loadEntitiesToEvaluate() {
-        // TODO: load entities via open API / local store (not evidenceDO)
-        throw new UnsupportedOperationException("loadEntitiesToEvaluate: wire entity load");
+        // TODO: load entities from local / Flowable store after UpstreamDataService prep
+        throw new UnsupportedOperationException("loadEntitiesToEvaluate: wire local entity load");
     }
 
     @Override

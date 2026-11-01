@@ -5,8 +5,8 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 ## Jobs (sequential)
 
 1. **Evidence gathering** (`com.batch.pipeline.job.EvidenceGatheringJob`)
-   - Upstream prep hook (fetch & store locally)
-   - Load entities to evaluate
+   - Upstream prep via `UpstreamDataService` (open API fetch & store locally)
+   - Load entities / rules via `BatchDataService` (local Flowable DO store)
    - Per entity / parent rule: **stage gate** → gather evidence via `Source` (or write `isApplicable=false` shell with `evidenceRules`)
    - Chunked transactional Flowable DO create-or-modify via `BatchDataService` / `FlowableBatchDataService`
    - Does **not** run applicability or evaluation rules
@@ -23,10 +23,10 @@ Java 21 Maven scaffold for a two-step nightly batch pipeline.
 | `com.batch.pipeline.model` | Enums + records (`Entity`, `Evidence`, outcomes, …) |
 | `com.batch.pipeline.source` | `Source` interface + `SourceRegistry` |
 | `com.batch.pipeline.rule` | `ChildRule` interface + `ChildRuleRegistry` |
-| `com.batch.pipeline.port` | `BatchDataService` — single Flowable persistence/load boundary |
+| `com.batch.pipeline.port` | `UpstreamDataService` (upstream open API) + `BatchDataService` (Flowable DO) |
 | `com.batch.pipeline.port.flowable` | DO keys, `DataObjectRuntimeService` mirror, `FlowableBatchDataService` |
 | `com.batch.pipeline.job` | Job orchestrator skeletons |
-| `*.stub` | Example Source / rule and no-op `BatchDataService` for wiring |
+| `*.stub` | Example Source / rule and no-op upstream + batch services |
 
 ## Build
 
@@ -38,9 +38,11 @@ mvn -q clean compile
 
 ## Flowable persistence
 
-Strictly **Flowable Data Objects** — no JDBC bulk upsert / multi-row SQL batch insert.
+**Upstream** prep/fetch is a separate contract: `UpstreamDataService` (not Flowable DO).
 
-- Contract: `BatchDataService` (`createOrModifyEvidenceChunk` / `createOrModifyFlagsChunk`)
+**In-app DB** is strictly **Flowable Data Objects** on `BatchDataService` — no JDBC bulk upsert / multi-row SQL batch insert.
+
+- Contract: `BatchDataService` (local entity/rule loads + `createOrModifyEvidenceChunk` / `createOrModifyFlagsChunk`)
 - Implementation: `FlowableBatchDataService` using `DataObjectRuntimeService`
   - `findDataObjectInstanceId` → lookup
   - `createDataObjectBuilder().definitionKey(...).values(...).create()` if missing

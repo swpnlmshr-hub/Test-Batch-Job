@@ -9,40 +9,38 @@ import com.batch.pipeline.model.Rule;
 import java.util.List;
 
 /**
- * Single Flowable-backed data-access boundary for both batch jobs.
+ * In-app Flowable Data Object persistence / load boundary for both batch jobs.
  * <p>
- * Implement once against Flowable Data Objects ({@code DataObjectRuntimeService}
- * create / modification builders). Chunking means: process N rows, then commit
- * one transaction — each row is still an individual Flowable DO create or modify
- * (lookup → create if missing, modify if present). Flowable has no batch insert
- * and this contract must not be implemented with JDBC multi-row SQL batch writes.
+ * All Flowable DO operations live here in this single file (entity/rule loads from
+ * local DO store, evidence/flags create-or-modify, etc.). Upstream open-API prep
+ * belongs on {@link UpstreamDataService}, not here.
+ * </p>
+ * <p>
+ * Implement against Flowable {@code DataObjectRuntimeService} create / modification
+ * builders. Chunking means: process N rows, then commit one transaction — each row
+ * is still an individual Flowable DO create or modify (lookup → create if missing,
+ * modify if present). Flowable has no batch insert; do not use JDBC multi-row SQL
+ * batch writes.
  * </p>
  */
 public interface BatchDataService {
 
-    // --- upstream prep (job 1) ---
+    // --- entity + parent-rule load (local / Flowable DO) ---
 
     /**
-     * Prefetch and store upstream data needed for this nightly run.
-     * Gatherers then read local copies, not live upstream, during the entity loop.
-     */
-    void prepareUpstream();
-
-    // --- entity + parent-rule load (job 1) ---
-
-    /**
-     * Entities to evaluate (~3–4k expected).
+     * Entities to evaluate (~3–4k expected), from local store after upstream prep.
      */
     List<Entity> loadEntitiesToEvaluate();
 
     /**
-     * Parent rule candidates for an entity (not child rules).
+     * Parent rule candidates for an entity (not child rules), from {@code ruleListDO}.
      * Applicable-stage is used by the orchestrator stage gate.
      */
     List<ParentRuleCandidate> loadParentRules(Entity entity);
 
     /**
-     * Mapped child rules under a parent (always written into {@code evidenceRules}).
+     * Mapped child rules under a parent (always written into {@code evidenceRules}),
+     * from {@code ruleMappingDO} / {@code rulesDO}.
      */
     List<Rule> loadMappedChildRules(String parentRuleId, EntityType entityType);
 

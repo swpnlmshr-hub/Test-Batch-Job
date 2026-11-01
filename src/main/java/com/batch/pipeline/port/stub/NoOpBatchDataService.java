@@ -11,13 +11,9 @@ import java.util.List;
 /**
  * No-op {@link BatchDataService} so jobs can be wired in smoke tests without Flowable.
  * Prefer {@link FlowableBatchDataService} for the real create-or-modify DO path.
+ * Upstream prep is {@link NoOpUpstreamDataService}, not this class.
  */
 public final class NoOpBatchDataService implements BatchDataService {
-
-    @Override
-    public void prepareUpstream() {
-        // no-op: real impl fetches upstream and stores locally
-    }
 
     @Override
     public List<Entity> loadEntitiesToEvaluate() {
