@@ -8,10 +8,9 @@ import com.batch.pipeline.model.Rule;
 import com.batch.pipeline.model.RuleEvaluationResult;
 import com.batch.pipeline.model.RuleOutcome;
 import com.batch.pipeline.model.RuleUsage;
-import com.batch.pipeline.port.EvidenceReadPort;
-import com.batch.pipeline.port.EvidenceReadPort.EvidenceRow;
-import com.batch.pipeline.port.FlagsUpsertPort;
-import com.batch.pipeline.port.FlagsUpsertPort.FlagsWrite;
+import com.batch.pipeline.port.BatchDataService;
+import com.batch.pipeline.port.BatchDataService.EvidenceRow;
+import com.batch.pipeline.port.BatchDataService.FlagsWrite;
 import com.batch.pipeline.rule.ChildRule;
 import com.batch.pipeline.rule.ChildRuleRegistry;
 
@@ -26,26 +25,23 @@ import java.util.Objects;
  * <p>
  * Reads stored evidence; for each parent runs applicability rules first, then
  * evaluation rules only when aggregate is {@link ApplicabilityAggregate#APPLICABLE}
- * (short-circuit otherwise). Writes flags via {@link FlagsUpsertPort}.
+ * (short-circuit otherwise). Writes flags via {@link BatchDataService}.
  * Does not refetch entities from upstream.
  * </p>
  */
 public final class EvaluationJob {
 
-    private final EvidenceReadPort evidenceReadPort;
+    private final BatchDataService dataService;
     private final ChildRuleRegistry childRuleRegistry;
-    private final FlagsUpsertPort flagsUpsertPort;
     private final int chunkSize;
 
     public EvaluationJob(
-            EvidenceReadPort evidenceReadPort,
+            BatchDataService dataService,
             ChildRuleRegistry childRuleRegistry,
-            FlagsUpsertPort flagsUpsertPort,
             int chunkSize
     ) {
-        this.evidenceReadPort = Objects.requireNonNull(evidenceReadPort, "evidenceReadPort");
+        this.dataService = Objects.requireNonNull(dataService, "dataService");
         this.childRuleRegistry = Objects.requireNonNull(childRuleRegistry, "childRuleRegistry");
-        this.flagsUpsertPort = Objects.requireNonNull(flagsUpsertPort, "flagsUpsertPort");
         if (chunkSize < 1) {
             throw new IllegalArgumentException("chunkSize must be >= 1");
         }
@@ -53,7 +49,7 @@ public final class EvaluationJob {
     }
 
     public void run() {
-        List<EvidenceRow> rows = evidenceReadPort.loadAllEvidence();
+        List<EvidenceRow> rows = dataService.loadAllEvidence();
 
         // Group parent outcomes by entity for flags upsert shape.
         Map<String, List<ParentEvaluationOutcome>> byEntity = new LinkedHashMap<>();
@@ -140,7 +136,7 @@ public final class EvaluationJob {
     }
 
     private void flush(List<FlagsWrite> buffer) {
-        flagsUpsertPort.upsertChunk(List.copyOf(buffer));
+        dataService.upsertFlagsChunk(List.copyOf(buffer));
         buffer.clear();
     }
 }
