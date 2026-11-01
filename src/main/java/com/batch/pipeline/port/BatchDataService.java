@@ -9,11 +9,13 @@ import com.batch.pipeline.model.Rule;
 import java.util.List;
 
 /**
- * Single persistence / data-access boundary for both batch jobs.
+ * Single Flowable-backed data-access boundary for both batch jobs.
  * <p>
- * Implement this once (e.g. Flowable Data Object adapters) so evidence gathering
- * and evaluation share one service. Hides Flowable / JDBC details; prefer chunked
- * transactional upserts on unique keys. No assumed bulk Data Object API.
+ * Implement once against Flowable Data Objects ({@code DataObjectRuntimeService}
+ * create / modification builders). Chunking means: process N rows, then commit
+ * one transaction — each row is still an individual Flowable DO create or modify
+ * (lookup → create if missing, modify if present). Flowable has no batch insert
+ * and this contract must not be implemented with JDBC multi-row SQL batch writes.
  * </p>
  */
 public interface BatchDataService {
@@ -47,22 +49,25 @@ public interface BatchDataService {
     // --- evidence persistence (job 1 write / job 2 read) ---
 
     /**
-     * Upsert a batch of evidence payloads in one chunk/transaction
-     * on unique {@code (entityId, parentRuleId)}.
+     * Chunked transactional Flowable DO create-or-modify for evidence rows
+     * keyed by {@code (entityId, parentRuleId)}. One create or modify builder
+     * call per write; no JDBC bulk upsert.
      */
-    void upsertEvidenceChunk(List<EvidenceWrite> writes);
+    void createOrModifyEvidenceChunk(List<EvidenceWrite> writes);
 
     /**
-     * Load stored evidence rows for the evaluation job (no upstream refetch).
+     * Load stored evidence Data Objects for the evaluation job (no upstream refetch).
      */
     List<EvidenceRow> loadAllEvidence();
 
     // --- flags persistence (job 2) ---
 
     /**
-     * Upsert flags for a chunk of entities.
+     * Chunked transactional Flowable DO create-or-modify for flags rows
+     * keyed by entity id. One create or modify builder call per write;
+     * no JDBC bulk upsert.
      */
-    void upsertFlagsChunk(List<FlagsWrite> writes);
+    void createOrModifyFlagsChunk(List<FlagsWrite> writes);
 
     // --- DTOs ---
 
@@ -77,7 +82,7 @@ public interface BatchDataService {
     }
 
     /**
-     * One evidence row to create-or-modify.
+     * One evidence Data Object to create-or-modify.
      *
      * @param entityId     entity primary key
      * @param entityType   system or case
@@ -93,7 +98,7 @@ public interface BatchDataService {
     }
 
     /**
-     * Stored evidence row for evaluation.
+     * Stored evidence Data Object for evaluation.
      *
      * @param entityId     entity primary key
      * @param entityType   system or case
@@ -109,7 +114,7 @@ public interface BatchDataService {
     }
 
     /**
-     * Flags payload for one entity (all parent outcomes for that entity).
+     * Flags Data Object payload for one entity (all parent outcomes for that entity).
      *
      * @param entityId entity primary key
      * @param parents  parent-level rollups that form the flags value JSON
